@@ -7,7 +7,7 @@ import { LevelClearScreen } from './components/LevelClearScreen';
 import { HeroPanel } from './components/HeroPanel';
 import { CorrectionScreen } from './components/CorrectionScreen';
 import { ProfessorArea } from './components/ProfessorArea';
-import { auth, db, loginWithGoogle, logout } from './firebase';
+import { auth, db, loginAnonymously, logout } from './firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { collection, doc, onSnapshot, setDoc, getDoc, writeBatch } from 'firebase/firestore';
 
@@ -29,23 +29,22 @@ export default function App() {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-      setUser(currentUser);
       if (currentUser) {
-        // Check if user is admin
-        const isAdminUser = currentUser.email === 'aleffrabreu@gmail.com';
-        setIsAdmin(isAdminUser);
-
+        setUser(currentUser);
         // Ensure user document exists
         const userRef = doc(db, 'users', currentUser.uid);
         const userSnap = await getDoc(userRef);
         if (!userSnap.exists()) {
           await setDoc(userRef, {
-            role: isAdminUser ? 'admin' : 'student',
+            role: 'student',
             xp: 0
           });
         }
+        setIsAuthReady(true);
+      } else {
+        // Auto login anonymously if not logged in
+        loginAnonymously();
       }
-      setIsAuthReady(true);
     });
     return () => unsubscribe();
   }, []);
@@ -209,29 +208,20 @@ export default function App() {
     }
   };
 
+  const handleUnlockProfessor = () => {
+    const pin = prompt('Digite o PIN do professor (Padrão: 1234):');
+    if (pin === '1234') {
+      setIsAdmin(true);
+      alert('Área do Professor desbloqueada!');
+    } else if (pin !== null) {
+      alert('PIN incorreto!');
+    }
+  };
+
   if (!isAuthReady) {
     return (
       <div className="min-h-screen bg-[var(--color-rpg-bg)] flex items-center justify-center">
         <div className="font-pixel text-yellow-400 animate-pulse">Carregando...</div>
-      </div>
-    );
-  }
-
-  if (!user) {
-    return (
-      <div className="min-h-screen bg-[var(--color-rpg-bg)] flex flex-col items-center justify-center p-4">
-        <div className="rpg-panel p-8 max-w-md w-full text-center">
-          <h1 className="font-pixel text-3xl text-yellow-400 mb-6">PixelQuest</h1>
-          <p className="font-sans text-gray-300 mb-8">
-            Faça login para salvar seu progresso e acessar as missões na nuvem!
-          </p>
-          <button 
-            onClick={loginWithGoogle}
-            className="pixel-button btn-primary w-full py-4 text-sm"
-          >
-            ENTRAR COM GOOGLE
-          </button>
-        </div>
       </div>
     );
   }
@@ -242,13 +232,14 @@ export default function App() {
     <div className="min-h-screen bg-[var(--color-rpg-bg)] font-sans">
       <HeroPanel xp={gameState.xp} levels={gameState.levels} />
       
-      {/* Logout button */}
-      <button 
-        onClick={logout}
-        className="fixed top-4 right-4 z-50 pixel-button btn-ghost px-3 py-2 text-[8px] text-gray-400 hover:text-white"
-      >
-        SAIR
-      </button>
+      {!isAdmin && gameState.status === 'map' && (
+        <button 
+          onClick={handleUnlockProfessor}
+          className="fixed bottom-4 right-4 z-50 pixel-button btn-ghost px-3 py-2 text-[10px] text-gray-500 hover:text-white"
+        >
+          PROFESSOR
+        </button>
+      )}
       
       {gameState.status === 'map' && (
         <MapScreen 

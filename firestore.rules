@@ -8,14 +8,6 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    function isAdmin() {
-      return isAuthenticated() && (
-        (request.auth.token.email == "aleffrabreu@gmail.com" && request.auth.token.email_verified == true) ||
-        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin')
-      );
-    }
-
     function isOwner(userId) {
       return isAuthenticated() && request.auth.uid == userId;
     }
@@ -24,48 +16,17 @@ service cloud.firestore {
     // Users Collection
     // ===============================================================
     match /users/{userId} {
-      allow read: if isOwner(userId) || isAdmin();
-      
-      // Allow user to create their own profile, but only as a student
-      allow create: if isOwner(userId) && 
-                    request.resource.data.keys().hasAll(['role', 'xp']) &&
-                    request.resource.data.xp == 0 &&
-                    (request.resource.data.role == 'student' || isAdmin());
-                    
-      // Allow user to update their own XP, but not their role
-      allow update: if isOwner(userId) && 
-                    request.resource.data.diff(resource.data).affectedKeys().hasOnly(['xp']) &&
-                    request.resource.data.xp is number || 
-                    isAdmin();
-                    
-      allow delete: if isAdmin();
+      allow read, write: if isOwner(userId);
     }
 
     // ===============================================================
     // Levels Collection
     // ===============================================================
     match /levels/{levelId} {
-      // Anyone logged in can read levels
-      allow read: if isAuthenticated();
-      
-      // Only admin can create levels
-      allow create: if isAdmin() && 
-                    request.resource.data.keys().hasAll(['title', 'questions', 'completed', 'createdAt']);
-                    
-      // Students can update levels to complete them, admin can update anything
-      allow update: if isAuthenticated() && (
-                      isAdmin() || 
-                      (
-                        // Students can only change completion status, answers, score, and grade
-                        request.resource.data.diff(resource.data).affectedKeys().hasAny(['completed', 'answers', 'score', 'grade', 'teacherCorrected']) &&
-                        // They cannot change the title, questions, or createdAt
-                        request.resource.data.title == resource.data.title &&
-                        request.resource.data.questions == resource.data.questions &&
-                        request.resource.data.createdAt == resource.data.createdAt
-                      )
-                    );
-                    
-      allow delete: if isAdmin();
+      // For a simplified personal app using anonymous auth, 
+      // all authenticated users can read and write levels.
+      // The UI restricts access to the Professor Area via a PIN.
+      allow read, write: if isAuthenticated();
     }
   }
 }
