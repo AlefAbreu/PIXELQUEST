@@ -27,7 +27,25 @@ export async function extractTextFromPdf(file: File): Promise<string> {
 }
 
 export async function generateLevelsFromText(text: string): Promise<Level[]> {
-  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+  let apiKey = '';
+  
+  // If Vite replaced process.env.GEMINI_API_KEY at build time, it will be a string literal here.
+  // We assign it directly. If it wasn't replaced, it will evaluate process.env.GEMINI_API_KEY at runtime.
+  try {
+    const injectedKey = process.env.GEMINI_API_KEY;
+    if (injectedKey && typeof injectedKey === 'string') {
+      apiKey = injectedKey;
+    }
+  } catch (e) {
+    // If process is not defined and Vite didn't replace it, it will throw a ReferenceError.
+    console.warn("Could not read GEMINI_API_KEY from environment.");
+  }
+
+  if (!apiKey) {
+    throw new Error("A chave da API do Gemini não foi encontrada. Se você publicou o app, certifique-se de que a chave (GEMINI_API_KEY) está configurada nas configurações (Settings) do projeto publicado.");
+  }
+
+  const ai = new GoogleGenAI({ apiKey });
   
   const prompt = `
   Você é um designer de jogos educacionais. Analise o seguinte texto extraído de uma lista de exercícios em PDF e transforme-o em missões (fases) de um jogo 16-bits.
