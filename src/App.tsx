@@ -15,6 +15,7 @@ export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [isAuthReady, setIsAuthReady] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
 
   const [gameState, setGameState] = useState<GameState>({
     xp: 0,
@@ -29,21 +30,31 @@ export default function App() {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-      if (currentUser) {
-        setUser(currentUser);
-        // Ensure user document exists
-        const userRef = doc(db, 'users', currentUser.uid);
-        const userSnap = await getDoc(userRef);
-        if (!userSnap.exists()) {
-          await setDoc(userRef, {
-            role: 'student',
-            xp: 0
-          });
+      try {
+        if (currentUser) {
+          setUser(currentUser);
+          // Ensure user document exists
+          const userRef = doc(db, 'users', currentUser.uid);
+          const userSnap = await getDoc(userRef);
+          if (!userSnap.exists()) {
+            await setDoc(userRef, {
+              role: 'student',
+              xp: 0
+            });
+          }
+          setIsAuthReady(true);
+        } else {
+          // Auto login anonymously if not logged in
+          await loginAnonymously();
+        }
+      } catch (error: any) {
+        console.error("Auth error:", error);
+        if (error?.code === 'auth/operation-not-allowed') {
+          setAuthError("A Autenticação Anônima não está ativada no seu projeto Firebase.");
+        } else {
+          setAuthError(error.message || "Erro desconhecido ao conectar com o banco de dados.");
         }
         setIsAuthReady(true);
-      } else {
-        // Auto login anonymously if not logged in
-        loginAnonymously();
       }
     });
     return () => unsubscribe();
@@ -222,6 +233,20 @@ export default function App() {
     return (
       <div className="min-h-screen bg-[var(--color-rpg-bg)] flex items-center justify-center">
         <div className="font-pixel text-yellow-400 animate-pulse">Carregando...</div>
+      </div>
+    );
+  }
+
+  if (authError) {
+    return (
+      <div className="min-h-screen bg-[var(--color-rpg-bg)] flex flex-col items-center justify-center p-4">
+        <div className="rpg-panel p-8 max-w-md w-full text-center border-2 border-red-500/50">
+          <h1 className="font-pixel text-xl text-red-400 mb-4">Erro de Conexão</h1>
+          <p className="font-sans text-gray-300 mb-6">{authError}</p>
+          <p className="font-sans text-sm text-gray-400">
+            Para usar o login invisível, você precisa ativar o provedor "Anônimo" no console do Firebase.
+          </p>
+        </div>
       </div>
     );
   }
