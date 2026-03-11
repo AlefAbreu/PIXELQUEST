@@ -27,22 +27,23 @@ export async function extractTextFromPdf(file: File): Promise<string> {
 }
 
 export async function generateLevelsFromText(text: string): Promise<Level[]> {
-  let apiKey = '';
+  // Use the explicitly provided API key as a fallback for the published environment
+  let apiKey = 'AIzaSyAXQ87NDRFM5l-hZeDp2BWpBinYikg6lTA';
   
   // If Vite replaced process.env.GEMINI_API_KEY at build time, it will be a string literal here.
   // We assign it directly. If it wasn't replaced, it will evaluate process.env.GEMINI_API_KEY at runtime.
   try {
     const injectedKey = process.env.GEMINI_API_KEY;
-    if (injectedKey && typeof injectedKey === 'string') {
+    if (injectedKey && typeof injectedKey === 'string' && injectedKey.trim() !== '') {
       apiKey = injectedKey;
     }
   } catch (e) {
     // If process is not defined and Vite didn't replace it, it will throw a ReferenceError.
-    console.warn("Could not read GEMINI_API_KEY from environment.");
+    console.warn("Could not read GEMINI_API_KEY from environment, using fallback key.");
   }
 
   if (!apiKey) {
-    throw new Error("A chave da API do Gemini não foi encontrada. Se você publicou o app, certifique-se de que a chave (GEMINI_API_KEY) está configurada nas configurações (Settings) do projeto publicado.");
+    throw new Error("A chave da API do Gemini não foi encontrada.");
   }
 
   const ai = new GoogleGenAI({ apiKey });
