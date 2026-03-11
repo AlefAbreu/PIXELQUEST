@@ -53,7 +53,7 @@ export function LevelClearScreen({ xpEarned, grade, onContinue }: LevelClearScre
         <Trophy className="w-24 h-24 text-yellow-400 mb-6 drop-shadow-[0_0_15px_rgba(255,215,0,0.5)]" />
         
         <h1 className="font-pixel text-3xl md:text-4xl text-center text-transparent bg-clip-text bg-gradient-to-b from-yellow-300 to-yellow-600 mb-2 drop-shadow-sm">
-          LEVEL CLEAR!
+          {grade === 'Pendente' ? 'MISSÃO CONCLUÍDA!' : 'LEVEL CLEAR!'}
         </h1>
         
         <div className="w-full h-1 bg-[#0f3460] my-6"></div>
@@ -62,8 +62,10 @@ export function LevelClearScreen({ xpEarned, grade, onContinue }: LevelClearScre
           <div className="bg-[#0f3460]/50 p-4 rounded border border-[#0f3460] w-full flex justify-between items-center">
             <span className="font-pixel text-[10px] text-gray-400">XP GANHO</span>
             <div className="flex items-center gap-2">
-              <Star className="w-5 h-5 text-yellow-400 fill-yellow-400 drop-shadow-[0_0_5px_rgba(255,215,0,0.5)]" />
-              <span className="font-pixel text-xl text-green-400">+{xpEarned}</span>
+              <Star className={`w-5 h-5 ${grade === 'Pendente' ? 'text-gray-500 fill-gray-500' : 'text-yellow-400 fill-yellow-400 drop-shadow-[0_0_5px_rgba(255,215,0,0.5)]'}`} />
+              <span className={`font-pixel text-xl ${grade === 'Pendente' ? 'text-gray-400 text-sm' : 'text-green-400'}`}>
+                {grade === 'Pendente' ? 'Em breve' : `+${xpEarned}`}
+              </span>
             </div>
           </div>
 
@@ -73,7 +75,7 @@ export function LevelClearScreen({ xpEarned, grade, onContinue }: LevelClearScre
               initial={{ scale: 2, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               transition={{ delay: 0.5, type: "spring" }}
-              className="font-pixel text-4xl text-yellow-400 drop-shadow-[0_0_10px_rgba(255,215,0,0.5)]"
+              className={`font-pixel ${grade === 'Pendente' ? 'text-sm text-gray-400' : 'text-4xl text-yellow-400 drop-shadow-[0_0_10px_rgba(255,215,0,0.5)]'}`}
             >
               {grade}
             </motion.span>

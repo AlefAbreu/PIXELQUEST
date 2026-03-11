@@ -1,7 +1,6 @@
 import * as pdfjsLib from 'pdfjs-dist';
 // @ts-ignore
 import pdfWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?worker';
-import { GoogleGenAI, Type } from '@google/genai';
 import { Level, Question } from '../types';
 
 // Set worker path using Vite's ?worker import
@@ -27,99 +26,109 @@ export async function extractTextFromPdf(file: File): Promise<string> {
 }
 
 export async function generateLevelsFromText(text: string): Promise<Level[]> {
-  // Use the explicitly provided API key as a fallback for the published environment
-  let apiKey = 'AIzaSyAXQ87NDRFM5l-hZeDp2BWpBinYikg6lTA';
+  const levels: Level[] = [];
   
-  // If Vite replaced process.env.GEMINI_API_KEY at build time, it will be a string literal here.
-  // We assign it directly. If it wasn't replaced, it will evaluate process.env.GEMINI_API_KEY at runtime.
-  try {
-    const injectedKey = process.env.GEMINI_API_KEY;
-    if (injectedKey && typeof injectedKey === 'string' && injectedKey.trim() !== '') {
-      apiKey = injectedKey;
-    }
-  } catch (e) {
-    // If process is not defined and Vite didn't replace it, it will throw a ReferenceError.
-    console.warn("Could not read GEMINI_API_KEY from environment, using fallback key.");
-  }
-
-  if (!apiKey) {
-    throw new Error("A chave da API do Gemini não foi encontrada.");
-  }
-
-  const ai = new GoogleGenAI({ apiKey });
+  // Split by "DIA " or "Dia "
+  const hasDays = /DIA \d+|Dia \d+/i.test(text);
+  const blocks = hasDays ? text.split(/(?=DIA \d+|Dia \d+)/i) : [text];
   
-  const prompt = `
-  Você é um designer de jogos educacionais. Analise o seguinte texto extraído de uma lista de exercícios em PDF e transforme-o em missões (fases) de um jogo 16-bits.
-  
-  Regras:
-  1. O PDF apresenta as atividades divididas em blocos de "Missão Diária" ou dias. Você DEVE dividir o conteúdo do jogo exatamente nesses mesmos blocos diários. Cada "Fase" (Level) do jogo corresponderá a um dia/bloco de missão do PDF.
-  2. O título de cada fase deve refletir o dia ou a missão diária correspondente (ex: "Missão Diária 1", "Dia 2 - Aventura Matemática", etc).
-  3. Identifique as questões e classifique-as em dois tipos:
-     - "multiple_choice" (Múltipla Escolha): Questões que podem ser respondidas com alternativas. Se o texto não tiver alternativas, crie 4 alternativas plausíveis baseadas no contexto, sendo apenas 1 correta. Forneça uma dica curta e encorajadora para caso a criança erre.
-     - "notebook" (Caderno): Questões dissertativas, de desenho ou que exigem escrita física.
-  4. Muitas questões possuem um texto introdutório ou de apoio (ex: um poema, um trecho de livro, uma explicação). NÃO suprima esse texto. Coloque-o no campo 'contextText'.
-  5. Retorne APENAS um JSON válido seguindo estritamente este schema.
+  let levelIdCounter = 1;
+  let questionIdCounter = 1;
 
-  Texto do PDF:
-  ${text.substring(0, 15000)} // Limit text to avoid token limits if too large
-  `;
-
-  const response = await ai.models.generateContent({
-    model: 'gemini-3.1-pro-preview',
-    contents: prompt,
-    config: {
-      responseMimeType: 'application/json',
-      responseSchema: {
-        type: Type.ARRAY,
-        items: {
-          type: Type.OBJECT,
-          properties: {
-            id: { type: Type.STRING, description: "ID único da fase, ex: 'level-1'" },
-            title: { type: Type.STRING, description: "Título divertido da fase" },
-            questions: {
-              type: Type.ARRAY,
-              items: {
-                type: Type.OBJECT,
-                properties: {
-                  id: { type: Type.STRING, description: "ID único da questão" },
-                  type: { type: Type.STRING, description: "'multiple_choice' ou 'notebook'" },
-                  contextText: { type: Type.STRING, description: "Texto introdutório ou de apoio da questão, se houver" },
-                  text: { type: Type.STRING, description: "O enunciado da questão" },
-                  options: {
-                    type: Type.ARRAY,
-                    items: { type: Type.STRING },
-                    description: "Array de 4 strings com as alternativas (apenas para multiple_choice)"
-                  },
-                  correctAnswer: { type: Type.STRING, description: "A alternativa correta exata (apenas para multiple_choice)" },
-                  hint: { type: Type.STRING, description: "Dica curta caso erre (apenas para multiple_choice)" }
-                },
-                required: ["id", "type", "text"]
-              }
-            }
-          },
-          required: ["id", "title", "questions"]
+  for (const block of blocks) {
+    if (!block.trim()) continue;
+    
+    const lines = block.split('\n').map(l => l.trim()).filter(l => l);
+    if (lines.length === 0) continue;
+    
+    let title = hasDays ? lines[0] : "Missão de Estudo";
+    
+    const level: Level = {
+      id: `level-${levelIdCounter++}`,
+      title: title.length > 60 ? title.substring(0, 60) + '...' : title,
+      completed: false,
+      questions: []
+    };
+    
+    let currentContext = "";
+    let currentQuestion: any = null;
+    
+    for (let i = hasDays ? 1 : 0; i < lines.length; i++) {
+      const line = lines[i];
+      
+      // Match "1. ", "2) ", etc.
+      const questionMatch = line.match(/^(\d+)[\.\)]\s+(.*)/);
+      // Match "a) ", "b) ", "○ a) ", etc.
+      const optionMatch = line.match(/^(?:[○o\-\*]\s*)?([a-e])[\.\)]\s+(.*)/i);
+      
+      if (questionMatch) {
+        if (currentQuestion) {
+          if (currentQuestion.options && currentQuestion.options.length > 0) {
+            currentQuestion.type = 'multiple_choice';
+          }
+          level.questions.push(currentQuestion);
+        }
+        
+        currentQuestion = {
+          id: `q-${questionIdCounter++}`,
+          type: 'notebook',
+          contextText: currentContext.trim(),
+          text: questionMatch[2],
+          options: [],
+          correctAnswer: '',
+          hint: 'Leia com atenção e tente novamente!'
+        };
+        currentContext = ""; // Reset context
+      } else if (optionMatch && currentQuestion) {
+        const optText = optionMatch[2];
+        currentQuestion.options.push(optText);
+        // Set the first option as correct answer by default (since we don't have AI to know the real answer)
+        if (currentQuestion.options.length === 1) {
+          currentQuestion.correctAnswer = optText;
+        }
+      } else {
+        if (currentQuestion && currentQuestion.options.length === 0) {
+          // Append to question text
+          currentQuestion.text += '\n' + line;
+        } else if (currentQuestion && currentQuestion.options.length > 0) {
+          // Append to last option
+          currentQuestion.options[currentQuestion.options.length - 1] += ' ' + line;
+        } else {
+          // Append to context
+          currentContext += line + '\n';
         }
       }
     }
-  });
-
-  const jsonStr = response.text?.trim() || '[]';
-  try {
-    const parsed = JSON.parse(jsonStr);
-    // Add default game state fields
-    return parsed.map((level: any) => ({
-      ...level,
-      completed: false,
-      questions: level.questions.map((q: any) => ({
-        ...q,
-        // Ensure options exist for multiple choice
-        options: q.type === 'multiple_choice' && (!q.options || q.options.length === 0) 
-          ? ['A', 'B', 'C', 'D'] // Fallback
-          : q.options
-      }))
-    }));
-  } catch (e) {
-    console.error("Failed to parse Gemini response", e);
-    return [];
+    
+    if (currentQuestion) {
+      if (currentQuestion.options && currentQuestion.options.length > 0) {
+        currentQuestion.type = 'multiple_choice';
+      }
+      level.questions.push(currentQuestion);
+    }
+    
+    if (level.questions.length > 0) {
+      levels.push(level);
+    }
   }
+  
+  // If no questions were parsed, create a generic notebook question
+  if (levels.length === 0 || levels.every(l => l.questions.length === 0)) {
+    return [{
+      id: 'level-1',
+      title: 'Missão de Estudo',
+      completed: false,
+      questions: [{
+        id: 'q-1',
+        type: 'notebook',
+        contextText: '',
+        text: 'Leia o documento e faça um resumo no seu caderno.',
+        options: [],
+        correctAnswer: '',
+        hint: ''
+      }]
+    }];
+  }
+  
+  return levels;
 }

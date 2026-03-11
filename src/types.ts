@@ -16,10 +16,11 @@ export interface AnswerRecord {
   type: QuestionType;
   userAnswer?: string;
   correctAnswer?: string;
-  isCorrect: boolean;
+  isCorrect?: boolean; // Optional now, since it might wait for teacher
   attempts: number;
   xpEarned: number;
   notebookGrade?: number;
+  status: 'pending_correction' | 'corrected';
 }
 
 export interface Level {

@@ -12,9 +12,10 @@ interface MapScreenProps {
   onStartGame: () => void;
   onOpenCorrection: (levelId: string) => void;
   onOpenProfessorArea: () => void;
+  isAdmin: boolean;
 }
 
-export function MapScreen({ levels, onSelectLevel, onUpload, isUploading, hasUploaded, onStartGame, onOpenCorrection, onOpenProfessorArea }: MapScreenProps) {
+export function MapScreen({ levels, onSelectLevel, onUpload, isUploading, hasUploaded, onStartGame, onOpenCorrection, onOpenProfessorArea, isAdmin }: MapScreenProps) {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       onUpload(e.target.files[0]);
@@ -142,9 +143,11 @@ export function MapScreen({ levels, onSelectLevel, onUpload, isUploading, hasUpl
                       initial={{ y: 20, opacity: 0 }}
                       animate={{ y: [0, -10, 0], opacity: 1 }}
                       transition={{ y: { duration: 2, repeat: Infinity, ease: "easeInOut" } }}
-                      className="absolute -top-16 bg-[var(--color-rpg-panel)] border-2 border-yellow-500 rounded-full w-12 h-12 flex items-center justify-center z-20 shadow-[0_0_15px_rgba(255,215,0,0.5)]"
+                      className={`absolute -top-16 bg-[var(--color-rpg-panel)] border-2 rounded-full w-12 h-12 flex items-center justify-center z-20 ${level.grade === 'Pendente' ? 'border-gray-500 shadow-[0_0_15px_rgba(156,163,175,0.5)]' : 'border-yellow-500 shadow-[0_0_15px_rgba(255,215,0,0.5)]'}`}
                     >
-                      <span className="font-pixel text-sm text-yellow-400">{level.grade}</span>
+                      <span className={`font-pixel text-[8px] md:text-sm ${level.grade === 'Pendente' ? 'text-gray-400' : 'text-yellow-400'}`}>
+                        {level.grade === 'Pendente' ? '...' : level.grade}
+                      </span>
                     </motion.div>
                   )}
 
@@ -176,13 +179,13 @@ export function MapScreen({ levels, onSelectLevel, onUpload, isUploading, hasUpl
                   </div>
 
                   {/* Correction Button */}
-                  {level.completed && (
+                  {level.completed && (isAdmin || level.teacherCorrected) && (
                     <button
                       onClick={() => onOpenCorrection(level.id)}
                       className="mt-4 pixel-button btn-secondary px-3 py-1 text-[8px] flex items-center gap-1"
                     >
                       <ClipboardCheck className="w-3 h-3" />
-                      CORREÇÃO
+                      {isAdmin ? 'CORRIGIR' : 'VER CORREÇÃO'}
                     </button>
                   )}
                 </motion.div>

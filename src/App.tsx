@@ -182,6 +182,22 @@ export default function App() {
     setGameState(prev => ({ ...prev, status: 'professor_area' }));
   };
 
+  const handleGradeLevel = async (levelId: string, updatedAnswers: AnswerRecord[], newXp: number, newGrade: string) => {
+    const levelRef = doc(db, 'levels', levelId);
+    try {
+      await setDoc(levelRef, {
+        answers: updatedAnswers,
+        score: newXp,
+        grade: newGrade,
+        teacherCorrected: true
+      }, { merge: true });
+      alert("Correção salva com sucesso!");
+    } catch (error) {
+      console.error("Error saving correction:", error);
+      alert("Erro ao salvar a correção.");
+    }
+  };
+
   const handleSaveProfessorLevels = async (levels: Level[]) => {
     try {
       const batch = writeBatch(db);
@@ -276,6 +292,7 @@ export default function App() {
           onStartGame={handleStartGame}
           onOpenCorrection={handleOpenCorrection}
           onOpenProfessorArea={isAdmin ? handleOpenProfessorArea : undefined}
+          isAdmin={isAdmin}
         />
       )}
       
@@ -299,6 +316,8 @@ export default function App() {
         <CorrectionScreen 
           level={currentLevel} 
           onBack={handleBackToMap}
+          onGrade={(updatedAnswers, newXp, newGrade) => handleGradeLevel(currentLevel.id, updatedAnswers, newXp, newGrade)}
+          isAdmin={isAdmin}
         />
       )}
 
