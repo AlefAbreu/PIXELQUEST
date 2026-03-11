@@ -32,6 +32,7 @@ export interface Level {
   maxScore?: number; // Max possible XP
   answers?: AnswerRecord[];
   teacherCorrected?: boolean;
+  createdAt?: string;
 }
 
 export interface GameState {

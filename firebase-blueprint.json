@@ -1,0 +1,40 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile storing role and XP",
+      "type": "object",
+      "properties": {
+        "role": { "type": "string", "enum": ["admin", "student"] },
+        "xp": { "type": "number" }
+      },
+      "required": ["role", "xp"]
+    },
+    "Level": {
+      "title": "Level",
+      "description": "A game level containing questions and student answers",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "questions": { "type": "array" },
+        "completed": { "type": "boolean" },
+        "grade": { "type": "string" },
+        "score": { "type": "number" },
+        "answers": { "type": "array" },
+        "teacherCorrected": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "questions", "completed", "createdAt"]
+    }
+  },
+  "firestore": {
+    "users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "User profiles"
+    },
+    "levels/{levelId}": {
+      "schema": { "$ref": "#/entities/Level" },
+      "description": "Game levels"
+    }
+  }
+}

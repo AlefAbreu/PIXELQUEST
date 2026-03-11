@@ -148,7 +148,7 @@ export function LevelScreen({ level, onComplete, onBack }: LevelScreenProps) {
   };
 
   const finishLevel = () => {
-    const answerList = Object.values(answers);
+    const answerList = Object.values(answers) as AnswerRecord[];
     const totalXpEarned = answerList.reduce((sum, ans) => sum + ans.xpEarned, 0);
     const maxPossibleXp = level.questions.length * 3;
     
@@ -171,7 +171,7 @@ export function LevelScreen({ level, onComplete, onBack }: LevelScreenProps) {
     onComplete(totalXpEarned, grade, answerList);
   };
 
-  const totalXpEarned = Object.values(answers).reduce((sum, ans) => sum + ans.xpEarned, 0);
+  const totalXpEarned = (Object.values(answers) as AnswerRecord[]).reduce((sum, ans) => sum + ans.xpEarned, 0);
 
   return (
     <div className="min-h-screen bg-[var(--color-rpg-bg)] flex flex-col items-center justify-center p-4 md:p-8 pt-24 relative overflow-hidden">

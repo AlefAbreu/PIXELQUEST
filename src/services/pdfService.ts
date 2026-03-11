@@ -1,4 +1,5 @@
 import * as pdfjsLib from 'pdfjs-dist';
+// @ts-ignore
 import pdfWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?worker';
 import { GoogleGenAI, Type } from '@google/genai';
 import { Level, Question } from '../types';
